@@ -1,43 +1,72 @@
 import numpy as np
-COLUMN_COUNT = 7
-ROW_COUNT = 6
 
-def convert_state_to_board(state, player):
-    board = state
+# COLUMN_COUNT = 7
+# ROW_COUNT = 6
 
-    # pos -> represents board position positioning of player tokens
-    # ovr -> represents the position of both players
-    pos, ovr = '', ''
-    for i in range(ROW_COUNT, -1, -1):
-        pos += '0'
-        ovr += '0'
-        for j in range(ROW_COUNT):
-            ovr += '1' if state[i][j] != 0 else '0'
-            pos += '1' if state[i][j] == player else '0'
+class Board:
 
-    return int(pos, 2), int(ovr, 2)
+    def __init__(self, state):
+        self.height = [0, 7, 15, 24, 30, 35, 42]
+        self.counter = 0
+        self.moves = [0] * 42
+        self.player1, self.player2 = self.convert_state_to_board(state)
 
-def is_win(board):
-    m = board & (board >> COLUMN_COUNT)
-    if m & (m >> COLUMN_COUNT * 2):
-        return True
+    def convert_state_to_board(state):
+
+        # p1 -> represents the position of player 1 tokens
+        # p2 -> represents the position of player 2 tokens
+        p1, p2 = '', ''
+        r = ['0', '1']
+        for i in range(6, -1, -1):
+            for j in range(6):
+                p1.join(r[state[i][j] == 1])
+                p2.join(r[state[i][j] == 2])
+
+        return int(p1, 2), int(p2, 2)
+
+    def is_win(self):
+        directions = [1, 7, 6, 8]
+        for dir in directions:
+            b = self.player1 & (self.player1 >> dir)
+            if b & (b >> dir * 2):
+                return True
+            
+        return False
+
+    def make_move(self, col):
+        move = 1 << self.height[col]
+        self.height[col] += 1
+        if self.counter % 2 == 0:
+            self.player1 ^= move
+        else:
+            self.player2 ^= move
+
+        self.moves[self.counter] = col
+        self.counter += 1
+
+    def undo_move(self):
+        self.counter -= 1
+        col = self.moves[self.counter]
+        self.height[col] -= 1
+        move = 1 << self.height[col]
+        if self.counter % 2 == 0:
+            self.player1 ^= move
+        else:
+            self.player2 ^= move
+
+    def gen_valid_moves(self):
+        moves = []
+        TOP = int('1000000100000010000001000000100000010000001000000', 2)
+        for i in range(7):
+            if not (TOP & (1 << self.height[i])):
+                moves.append(i)
+
+        return moves
+
+def negamax(board: Board):
+    if board.counter >= 42:
+        return 0
     
-    m = board & (board >> 6)
-    if m & (m >> 12):
-        return True
-    
-    m = board & (board >> 8)
-    if m & (m >> 16):
-        return True
-    
-    m = board & (board >> 1)
-    if m & (m >> 2):
-        return True
-    
-    return False
-
-def make_move(pos, ovr, col):
-    new_pos = pos ^ ovr
-    new_ovr = ovr | (ovr +(1 << (col * COLUMN_COUNT)))
-    return new_pos, new_ovr
-
+    for i in range(7):
+        if 
+            
