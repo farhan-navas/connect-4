@@ -11,7 +11,7 @@ class GameController(object):
         print(self.board.get_state())
 
     def run(self):
-        self.draw_board()
+        # self.draw_board()
         
         # Start with P1
         player_id = 1
@@ -32,7 +32,7 @@ class GameController(object):
                         continue
                         
                     self.board.step((action, player_id))
-                    self.draw_board()
+                    # self.draw_board()
                     
                     if self.board.is_win():
                         self.show_message(f"Player {player_id} wins!")

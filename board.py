@@ -11,7 +11,7 @@ class Board:
         self.moves = [0] * 42
         self.player1, self.player2 = self.convert_state_to_board(state)
 
-    def convert_state_to_board(state):
+    def convert_state_to_board(self, state):
 
         # p1 -> represents the position of player 1 tokens
         # p2 -> represents the position of player 2 tokens
@@ -23,11 +23,32 @@ class Board:
                 p2.join(r[state[i][j] == 2])
 
         return int(p1, 2), int(p2, 2)
+    
+    # TEMP FUNCTIONS -> FAKE VERSION
+
+    def eval_func(self, count):
+        res = 0
+        val = 10 if count == 2 else 100
+        board = self.player1
+
+        directions = [1, 7, 6, 8]
+        for dir in directions:
+            if count == 2:
+                if (board & (board >> dir)) != 0:     
+                    res += count * val
+
+            if count == 3:
+                if (board & (board >> dir) & (board >> dir * 2)) != 0:
+                    res += count * val
+            
+        return res 
+
+    # REAL VERSION
 
     def is_win(self):
         directions = [1, 7, 6, 8]
         for dir in directions:
-            b = self.player1 & (self.player1 >> dir)
+            b = self.player2 & (self.player2 >> dir)
             if b & (b >> dir * 2):
                 return True
             
@@ -36,23 +57,20 @@ class Board:
     def make_move(self, col):
         move = 1 << self.height[col]
         self.height[col] += 1
-        if self.counter % 2 == 0:
-            self.player1 ^= move
-        else:
-            self.player2 ^= move
 
         self.moves[self.counter] = col
         self.counter += 1
+
+        self.player1, self.player2 = self.player2, self.player1 ^ move
+        return self
 
     def undo_move(self):
         self.counter -= 1
         col = self.moves[self.counter]
         self.height[col] -= 1
         move = 1 << self.height[col]
-        if self.counter % 2 == 0:
-            self.player1 ^= move
-        else:
-            self.player2 ^= move
+
+        self.player1, self.player2 = self.player2 ^ move, self.player1
 
     def gen_valid_moves(self):
         moves = []
@@ -62,11 +80,4 @@ class Board:
                 moves.append(i)
 
         return moves
-
-def negamax(board: Board):
-    if board.counter >= 42:
-        return 0
-    
-    for i in range(7):
-        if 
             
