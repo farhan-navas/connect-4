@@ -17,31 +17,36 @@ class Board:
         # p2 -> represents the position of player 2 tokens
         p1, p2 = '', ''
         r = ['0', '1']
-        for i in range(6, -1, -1):
-            for j in range(6):
-                p1.join(r[state[i][j] == 1])
-                p2.join(r[state[i][j] == 2])
+        for i in range(5, -1, -1):
+            for j in range(7):
+                p1 += r[state[i][j] == 1]
+                p2 += r[state[i][j] == 2]
 
         return int(p1, 2), int(p2, 2)
     
     # TEMP FUNCTIONS -> FAKE VERSION
 
-    def eval_func(self, count):
-        res = 0
-        val = 10 if count == 2 else 100
-        board = self.player1
-
+    def eval_func(self):
         directions = [1, 7, 6, 8]
-        for dir in directions:
-            if count == 2:
-                if (board & (board >> dir)) != 0:     
-                    res += count * val
 
-            if count == 3:
-                if (board & (board >> dir) & (board >> dir * 2)) != 0:
-                    res += count * val
+        agent_board = self.player1
+        opp_board = self.player2
+
+        def potential_wins(board):
+            score = 0
+            for dir in directions:
+                b = board & (board >> dir)
+                score += bin(b).count('1')
+                b &= (b >> dir)
+                score += bin(b).count('1') * 10
             
-        return res 
+            return score
+        
+        agent_score = potential_wins(agent_board)
+        opp_score = potential_wins(opp_board)
+
+        return agent_score - opp_score
+        
 
     # REAL VERSION
 
