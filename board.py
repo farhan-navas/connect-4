@@ -1,4 +1,4 @@
-import numpy as np
+import math
 
 # COLUMN_COUNT = 7
 # ROW_COUNT = 6
@@ -6,21 +6,47 @@ import numpy as np
 class Board:
 
     def __init__(self, state):
-        self.height = [0, 7, 15, 24, 30, 35, 42]
+        self.height = [0, 7, 14, 21, 28, 35, 42]
         self.counter = 0
         self.moves = [0] * 42
         self.player1, self.player2 = self.convert_state_to_board(state)
 
     def convert_state_to_board(self, state):
-
         # p1 -> represents the position of player 1 tokens
         # p2 -> represents the position of player 2 tokens
         p1, p2 = '', ''
-        r = ['0', '1']
-        for i in range(5, -1, -1):
-            for j in range(7):
-                p1 += r[state[i][j] == 1]
-                p2 += r[state[i][j] == 2]
+        counter = 0
+        # start to encode into bitboard from bottom row, 1st place on the left  
+        for j in range(7):
+            for i in range(6, -1, -1):
+                if i == 6:
+                    p1 = '0' + p1
+                    p2 = '0' + p2
+                    continue
+
+                if state[i][j] == 1:
+                    p1 = '1' + p1
+                    p2 = '0' + p2
+                    self.height[j] += 1
+                    counter += 1
+
+                elif state[i][j] == 2:
+                    p1 = '0' + p1
+                    p2 = '1' + p2
+                    self.height[j] += 1
+                    counter += 1
+                
+                else:
+                    p1 = '0' + p1
+                    p2 = '0' + p2
+                
+        if counter & 1:
+            p1, p2 = p2, p1
+
+        p1 = p1[:len(p1)-1]
+        p2 = p2[:len(p2)-1]
+        p1 = '0' + p1
+        p2 = '0' + p2
 
         return int(p1, 2), int(p2, 2)
     
@@ -29,24 +55,20 @@ class Board:
     def eval_func(self):
         directions = [1, 7, 6, 8]
 
-        agent_board = self.player1
-        opp_board = self.player2
-
-        def potential_wins(board):
+        def count_nums(board, num):
             score = 0
             for dir in directions:
-                b = board & (board >> dir)
-                score += bin(b).count('1')
-                b &= (b >> dir)
-                score += bin(b).count('1') * 10
-            
-            return score
-        
-        agent_score = potential_wins(agent_board)
-        opp_score = potential_wins(opp_board)
+                b = board
+                for i in range(num - 1):
+                    b = b & (b >> dir * (i+1)) 
+                    score += bin(b).count('1')
 
-        return agent_score - opp_score
-        
+            return score
+
+        agent_score = count_nums(self.player1, 2) + count_nums(self.player1, 3) * 4 
+        opp_score = count_nums(self.player2, 2) + count_nums(self.player2, 3) * 4
+
+        return math.tanh(agent_score - opp_score)
 
     # REAL VERSION
 
@@ -81,8 +103,53 @@ class Board:
         moves = []
         TOP = int('1000000100000010000001000000100000010000001000000', 2)
         for i in range(7):
-            if not (TOP & (1 << self.height[i])):
+            if ((TOP & (1 << self.height[i])) == 0):
                 moves.append(i)
 
+        moves.sort(key=lambda x: abs(x - 3))
         return moves
+    
+    def print_bitboard_p1(self):
+        top_level = [6, 13, 20, 27, 34, 41, 48]
+        p_board = [[0] * 7 for _ in range(6)]
+        str_board = str(bin(self.player1))[2:]
+        pad_zeros = 48 - len(str_board)
+        str_board = pad_zeros * '0' + str_board
+        print(str_board)
+
+        for i in range(48):
+            if (i % 7) in top_level:
+                continue
             
+            else:
+                r = i // 7
+                c = i % 7
+                p_board[c][r] = str_board[i]
+        
+        for row in p_board:
+            row.reverse()
+
+        print(*p_board, sep="\n")
+
+    def print_bitboard_p2(self):
+        top_level = [6, 13, 20, 27, 34, 41, 48] 
+        p_board = [[0] * 7 for _ in range(6)]
+        str_board = str(bin(self.player2))[2:]
+        pad_zeros = 48 - len(str_board)
+        str_board = pad_zeros * '0' + str_board
+        print(str_board)
+
+        for i in range(42):
+            if (i % 7) in top_level:
+                continue
+            
+            else:
+                r = i // 7
+                c = i % 7
+                p_board[c][r] = str_board[i]
+
+        for row in p_board:
+            row.reverse()
+
+        print(*p_board, sep="\n")
+    
