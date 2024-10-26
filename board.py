@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 # COLUMN_COUNT = 7
 # ROW_COUNT = 6
@@ -13,44 +14,28 @@ class Board:
         self.bottom_mask = 0b1000000100000010000001000000100000010000001
         self.board_mask =  0b0111111011111101111110111111011111101111110111111
 
-
     def convert_state_to_board(self, state):
         # p1 -> represents the position of player 1 tokens
         # p2 -> represents the position of player 2 tokens
-        p1, p2 = '', ''
-        # start to encode into bitboard from bottom row, 1st place on the left  
-        for j in range(7):
-            for i in range(6, -1, -1):
-                if i == 6:
-                    p1 = '0' + p1
-                    p2 = '0' + p2
-                    continue
-
-                if state[i][j] == 1:
-                    p1 = '1' + p1
-                    p2 = '0' + p2
-                    self.height[j] += 1
+        p1, p2 = 0, 0
+        # reverse board such that bottom layer is now row 0, and then encode into bitboard
+        state = np.flip(state, axis=0)
+        for r in range(6):
+            for c in range(7):
+                bit_idx = c * 7 + r
+                if state[r][c] == 1:
+                    p1 |= 1 << bit_idx
+                    self.height[c] += 1
+                    self.counter += 1
+                elif state[r][c] == 2:
+                    p2 |= 1 << bit_idx
+                    self.height[c] += 1 
                     self.counter += 1
 
-                elif state[i][j] == 2:
-                    p1 = '0' + p1
-                    p2 = '1' + p2
-                    self.height[j] += 1
-                    self.counter += 1
-                
-                else:
-                    p1 = '0' + p1
-                    p2 = '0' + p2
-                
         if self.counter & 1:
             p1, p2 = p2, p1
 
-        p1 = p1[:len(p1)-1]
-        p2 = p2[:len(p2)-1]
-        p1 = '0' + p1
-        p2 = '0' + p2
-
-        return int(p1, 2), int(p2, 2)
+        return p1, p2
 
     # TEMP FUNCTIONS
 
@@ -127,7 +112,7 @@ class Board:
     def bits_to_moves(self, b):
         moves = []
         for c in range(7):
-            if self.height[c] >= (c + 1) * 7:
+            if self.height[c] >= (c * 7) + 6:
                 continue
             idx = self.height[c]
             if b & (1 << idx):
@@ -140,14 +125,7 @@ class Board:
         return (self.player1 | self.player2) ^ ((self.player1 | self.player2) + self.bottom_mask)
 
     def compute_winning_positions(self):
-        # vertical
-        # print(bin(self.player2))
-        # self.print_bitboard(self.player2)
-        w = (self.player2 >> 1) & (self.player2 >> 2) & (self.player2 >> 3)
-        # print("self.p2")
-        # self.print_bitboard(self.player2)
-        # print("w")
-        # self.print_bitboard(w)
+        w = (self.player2 << 1) & (self.player2 << 2) & (self.player2 << 3)
 
         # horizontal
         curr = (self.player2 << 7) & (self.player2 << 14)
@@ -156,8 +134,6 @@ class Board:
         curr >>= 21
         w |= curr & (self.player2 << 7)
         w |= curr & (self.player2 >> 21)
-        # print("w horizontal")
-        # self.print_bitboard(w)
 
         # diagonal 1
         curr = (self.player2 << 6) & (self.player2 << 12)
@@ -174,26 +150,24 @@ class Board:
         curr >>= 24
         w |= curr & (self.player2 << 8)
         w |= curr & (self.player2 >> 24)
+        # print("w")
+        # self.print_bitboard(w)
 
         return w & self.board_mask
 
     def non_losing_moves(self):
         possible = self.possible()
         opp_win = self.compute_winning_positions()
-        # forced = self.bottom_mask & opp_win
 
         next_possible = possible ^ (self.player1 | self.player2)
         forced = next_possible & opp_win
-        
-        # print("next_possible: ")
-        # self.print_bitboard(next_possible)
-        # print("opp win: ")
-        # self.print_bitboard(opp_win)
 
         if forced:
             if forced & (forced - 1):
+                # print("error here 1")
                 return []
             else:
+                # print("error here 2")
                 possible = forced
                 moves = []
                 for col in range(7):
@@ -204,14 +178,10 @@ class Board:
                 return moves
 
         else:
-            # print("error here 3")
-            # print("opp_win >> 1")
-            # self.print_bitboard(opp_win >> 1)
-            possible &= ~(opp_win >> 1)
+            # possible &= ~(opp_win >> 1)
+            next_possible &= ~(opp_win >> 1)
 
-        # print("2nd possible: ")
-        # self.print_bitboard(possible)
-        return self.bits_to_moves(possible)
+        return self.bits_to_moves(next_possible)
     
     def pop_count(self, board):
         board &= self.board_mask
