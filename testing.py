@@ -30,12 +30,11 @@ arr3 = np.array([
 
 b = Board(arr2)
 print(f"player 1: {b.player1}, player 2: {b.player2}, height: {b.height}, counter: {b.counter}")
-b.print_bitboard(b.player1)
-b.print_bitboard(b.player2)
+# b.print_bitboard(b.player1)
+# b.print_bitboard(b.player2)
 print(b.height)
 print("valid moves: ", b.gen_valid_moves())
 print("non-losing moves: ", b.non_losing_moves())
-
 # print(f"player 1: {nb.player1}, player 2: {nb.player2}, height: {nb.height}, counter: {nb.counter}")
 # print("valid moves: ", nb.gen_valid_moves())
 # print("non-losing moves: ", nb.non_losing_moves())

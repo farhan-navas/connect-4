@@ -118,38 +118,38 @@ class Board:
             if b & (1 << idx):
                 moves.append(c)
 
-        moves.sort(key=lambda x: abs(x - 3)) 
         return moves
     
     def possible(self):
+        # returns a board of all current moves played + all next moves playable
         return (self.player1 | self.player2) ^ ((self.player1 | self.player2) + self.bottom_mask)
 
-    def compute_winning_positions(self):
-        w = (self.player2 << 1) & (self.player2 << 2) & (self.player2 << 3)
+    def compute_winning_positions(self, b):
+        w = (b << 1) & (b << 2) & (b << 3)
 
         # horizontal
-        curr = (self.player2 << 7) & (self.player2 << 14)
-        w |= curr & (self.player2 << 21)
-        w |= curr & (self.player2 >> 7)
+        curr = (b << 7) & (b << 14)
+        w |= curr & (b << 21)
+        w |= curr & (b >> 7)
         curr >>= 21
-        w |= curr & (self.player2 << 7)
-        w |= curr & (self.player2 >> 21)
+        w |= curr & (b << 7)
+        w |= curr & (b >> 21)
 
         # diagonal 1
-        curr = (self.player2 << 6) & (self.player2 << 12)
-        w |= curr & (self.player2 << 18)
-        w |= curr & (self.player2 >> 6)
+        curr = (b << 6) & (b << 12)
+        w |= curr & (b << 18)
+        w |= curr & (b >> 6)
         curr >>= 18
-        w |= curr & (self.player2 << 6)
-        w |= curr & (self.player2 >> 18)
+        w |= curr & (b << 6)
+        w |= curr & (b >> 18)
 
         # diagonal 2
-        curr = (self.player2 << 8) & (self.player2 << 16)
-        w |= curr & (self.player2 << 24)
-        w |= curr & (self.player2 >> 8)
+        curr = (b << 8) & (b << 16)
+        w |= curr & (b << 24)
+        w |= curr & (b >> 8)
         curr >>= 24
-        w |= curr & (self.player2 << 8)
-        w |= curr & (self.player2 >> 24)
+        w |= curr & (b << 8)
+        w |= curr & (b >> 24)
         # print("w")
         # self.print_bitboard(w)
 
@@ -157,17 +157,15 @@ class Board:
 
     def non_losing_moves(self):
         possible = self.possible()
-        opp_win = self.compute_winning_positions()
+        opp_win = self.compute_winning_positions(self.player2)
 
         next_possible = possible ^ (self.player1 | self.player2)
         forced = next_possible & opp_win
 
         if forced:
             if forced & (forced - 1):
-                # print("error here 1")
                 return []
             else:
-                # print("error here 2")
                 possible = forced
                 moves = []
                 for col in range(7):
@@ -178,14 +176,29 @@ class Board:
                 return moves
 
         else:
-            # possible &= ~(opp_win >> 1)
             next_possible &= ~(opp_win >> 1)
 
-        return self.bits_to_moves(next_possible)
+        valid_moves = self.bits_to_moves(next_possible)
+        valid_moves.sort(key=lambda x: abs(x - 3))
+
+        scored_moves = []
+        for idx, move in enumerate(valid_moves):
+            score = self.move_score(move)
+            scored_moves.append((move, score, idx))
+
+        scored_moves.sort(key=lambda x: (-x[1], x[2]))
+        sorted_moves = [move for move, score, idx in scored_moves]
+        return sorted_moves
     
-    def pop_count(self, board):
-        board &= self.board_mask
-        return bin(board).count('1') 
+    def pop_count(self, b):
+        return bin(b).count('1')
+    
+    def move_score(self, move):
+        self.make_move(move)
+        curr_win = self.compute_winning_positions(self.player1)
+        win = (curr_win ^ self.player2) & curr_win
+        self.undo_move()
+        return self.pop_count(win)
 
     def print_bitboard(self, b):
         print(bin(b))
