@@ -10,6 +10,7 @@ class Board:
         self.height = [0, 7, 14, 21, 28, 35, 42]
         self.counter = 0
         self.moves = [0] * 42
+        self.opp_moves = []
         self.player1, self.player2 = self.convert_state_to_board(state)
         self.bottom_mask = 0b1000000100000010000001000000100000010000001
         self.board_mask =  0b0111111011111101111110111111011111101111110111111
@@ -37,8 +38,6 @@ class Board:
 
         return p1, p2
 
-    # TEMP FUNCTIONS
-
     def eval_func(self):
         directions = [1, 7, 6, 8]
 
@@ -48,7 +47,7 @@ class Board:
                 b = board
                 for i in range(num - 1):
                     b = b & (b >> dir * (i+1)) 
-                    score += bin(b).count('1')
+                    score += self.pop_count(b)
 
             return score
 
@@ -56,8 +55,6 @@ class Board:
         opp_score = count_nums(self.player2, 2) + count_nums(self.player2, 3) * 4
 
         return math.tanh(agent_score - opp_score)
-
-    # REAL VERSION
 
     # CHECK which is_win function is more efficient
     # def is_win(self):
@@ -106,7 +103,7 @@ class Board:
             if ((TOP & (1 << self.height[i])) == 0):
                 moves.append(i)
 
-        moves.sort(key=lambda x: abs(x - 3))
+        # moves.sort(key=lambda x: abs(x - 3))
         return moves
     
     def bits_to_moves(self, b):
@@ -191,7 +188,11 @@ class Board:
         return sorted_moves
     
     def pop_count(self, b):
-        return bin(b).count('1')
+        count = 0
+        while b:
+            b &= b - 1
+            count += 1
+        return count
     
     def move_score(self, move):
         self.make_move(move)
@@ -212,7 +213,6 @@ class Board:
         for i in range(48):
             if (i % 7) in top_level:
                 continue
-            
             else:
                 r = i // 7
                 c = i % 7

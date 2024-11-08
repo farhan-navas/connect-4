@@ -1,293 +1,124 @@
-# from game_utils import initialize, step, get_valid_col_id
-
-# c4_board = initialize()
-# print(c4_board.shape)
-
-# print(c4_board)
-
-# get_valid_col_id(c4_board)
-
-# step(c4_board, col_id=2, player_id=1, in_place=True)
-
-# print(c4_board)
-
-# step(c4_board, col_id=2, player_id=2, in_place=True)
-# step(c4_board, col_id=2, player_id=1, in_place=True)
-# step(c4_board, col_id=2, player_id=2, in_place=True)
-# step(c4_board, col_id=2, player_id=1, in_place=True)
-# step(c4_board, col_id=2, player_id=2, in_place=True)
-# print(c4_board)
-
-# print(get_valid_col_id(c4_board))
-
-# step(c4_board, col_id=2, player_id=1, in_place=True)
-
-class ZeroAgent(object):
-    def __init__(self, player_id=1):
-        pass
-    def make_move(self, state):
-        return 0
-
-# Step 1
-# agent1 = ZeroAgent(player_id=1) # Yours, Player 1
-# agent2 = ZeroAgent(player_id=2) # Opponent, Player 2
-
-# # Step 2
-# contest_board = initialize()
-
-# # Step 3
-# p1_board = contest_board.view()
-# p1_board.flags.writeable = False
-# move1 = agent1.make_move(p1_board)
-
-# # Step 4
-# step(contest_board, col_id=move1, player_id=1, in_place=True)
-
-# from simulator import GameController, HumanAgent
-# from connect_four import ConnectFour
-
-# board = ConnectFour()
-# game = GameController(board=board, agents=[HumanAgent(1), HumanAgent(2)])
-# game.run()
-
-# ## Task 1.1 Make a valid move
-
-# import random
-
-# class AIAgent(object):
-#     """
-#     A class representing an agent that plays Connect Four.
-#     """
-#     def __init__(self, player_id=1):
-#         """Initializes the agent with the specified player ID.
-
-#         Parameters:
-#         -----------
-#         player_id : int
-#             The ID of the player assigned to this agent (1 or 2).
-#         """
-#         self.player_id = player_id
-    
-#     def make_move(self, state):
-#         """
-#         Determines and returns the next move for the agent based on the current game state.
-
-#         Parameters:
-#         -----------
-#         state : np.ndarray
-#             A 2D numpy array representing the current, read-only state of the game board. 
-#             The board contains:
-#             - 0 for an empty cell,
-#             - 1 for Player 1's piece,
-#             - 2 for Player 2's piece.
-
-#         Returns:
-#         --------
-#         int
-#             The valid action, ie. a valid column index (col_id) where this agent chooses to drop its piece.
-#         """
-#         possible_choices = get_valid_col_id(state)
-        
-
-# def test_task_1_1():
-#     from utils import check_step, actions_to_board
-    
-#     # Test case 1
-#     res1 = check_step(ConnectFour(), 1, AIAgent)
-#     assert(res1 == "Pass")
- 
-#     # Test case 2
-#     res2 = check_step(actions_to_board([0, 0, 0, 0, 0, 0]), 1, AIAgent)
-#     assert(res2 == "Pass")
-    
-#     # Test case 3
-#     res2 = check_step(actions_to_board([4, 3, 4, 5, 5, 1, 4, 4, 5, 5]), 1, AIAgent)
-#     assert(res2 == "Pass")
-
-## Task 2.1: Defeat the Baby Agent
-
-from game_utils import initialize, step, get_valid_col_id, is_end
 import math
-import numpy as np
-import time
 from simulator import GameController, HumanAgent
 from connect_four import ConnectFour
-import random
+from board import Board
+import time
+import numpy as np
 
 class AIAgent(object):
     def __init__(self, player_id=1):
         self.player_id = player_id
-        self.agent_table = np.zeros((6, 7), dtype=int)
-        self.opp_table = np.zeros((6, 7), dtype=int)
         self.transposition_table = {}
 
     def make_move(self, state):
         start_time = time.time()
-        res, move = self.negamax(state, self.player_id, 5)
-        print("--- %s seconds ---" % (time.time() - start_time))
-        return move
+        bitboard = Board(state)
+
+        # CURRENTLY, max depth we can do on coursemology is 7, optimize!!
+        best_move, res = self.negamax(bitboard, 14)
+
+        # print("num of items: ", len(self.transposition_table))
+        # print("Time taken: ", (time.time() - start_time), " seconds")
+        print(f"best move here is {best_move}, value is {res}")
+
+        # return best_move
+        return (best_move, res)
     
-    def is_win(self, state, player):
-        for row in range(6):
-            for col in range(7):
-                if state[row][col] == 0:
-                    continue
-                if col + 3 < 7 and np.all(state[row, col:col+4] == player):
-                    return player
-                if row + 3 < 6 and np.all(state[row:row+4, col] == player):
-                    return player
-                if row + 3 < 6 and col + 3 < 7 and state[row][col] == state[row + 1][col + 1] == state[row + 2][col + 2] == state[row + 3][col + 3]:
-                    return player
-                if row + 3 < 6 and col - 3 >= 0 and state[row][col] == state[row + 1][col - 1] == state[row + 2][col - 2] == state[row + 3][col - 3]:
-                    return player
-        return 0
+    def negamax(self, bitboard: Board, depth, alpha=-math.inf, beta=math.inf):
+        key = (bitboard.player1, bitboard.player2)
 
-    def check_rows(self, state, player, table, count):
-        val = 10 if count == 2 else 100
+        # check if current position is in the transposition table
+        if key in self.transposition_table:
+            return self.transposition_table[key]
 
-        for r in range(6):
-            for c in range(7):
-                if state[r][c] == 0 or state[r][c] != player:
-                    continue
-                if r + count > 6 and c + count > 7:
-                    break 
-                if c + count <= 7 and state[r][c] == state[r][c + count - 2] == state[r][c + count - 1] == player:
-                    table[r][c] = val
-                    table[r][c + count - 2] = val
-                    table[r][c + count - 1] = val
-                if r + count <= 6 and state[r][c] == state[r + count - 2][c] == state[r + count - 1][c] == player:
-                    table[r][c] = val
-                    table[r + count - 2][c] = val
-                    table[r + count - 1][c] = val
-                if r + count <= 6 and c + count <= 7 and state[r][c] == state[r + count - 2][c + count - 2] == state[r + count - 1][c + count - 1] == player:
-                    table[r][c] = val
-                    table[r + count - 2][c + count - 2] = val
-                    table[r + count - 1][c + count - 1] = val
-                if r + count <= 6 and c - count + 1 >= 0 and state[r][c] == state[r + count - 2][c - count + 2] == state[r + count - 1][c - count + 1] == player:
-                    table[r][c] = val
-                    table[r + count - 2][c - count + 2] = val
-                    table[r + count - 1][c - count + 1] = val
+        # is_win() checks if the opponent player wins
+        if bitboard.is_win():
+            return (None, -1)
         
-        return table            
+        # all board spaces have been filled up, and not opp is_win so it is a draw
+        if bitboard.counter == 42:
+            return (None, 0)
 
-    def eval_func(self, state, player):
-        # eval_table = np.array([[3, 4, 5, 7, 5, 4, 3], 
-        #             [4, 6, 8, 10, 8, 6, 4],
-        #             [5, 8, 11, 13, 11, 8, 5],
-        #             [5, 8, 11, 13, 11, 8, 5],
-        #             [4, 6, 8, 10, 8, 6, 4],
-        #             [3, 4, 5, 7, 5, 4, 3]])
-        
-        # self.agent_table.fill(0)
-        # self.opp_table.fill(0)
-        # opp_player = 3 - player
-
-        # self.agent_table = self.check_rows(state, player, self.agent_table, 2)    
-        # self.agent_table = self.check_rows(state, player, self.agent_table, 3)
-        # self.opp_table = self.check_rows(state, opp_player, self.opp_table, 2)
-        # self.opp_table = self.check_rows(state, opp_player, self.opp_table, 3)
-
-        # agent_score = np.sum(self.agent_table * eval_table)
-        # opp_score = np.sum(self.opp_table * eval_table) 
-
-        # return agent_score - opp_score
-        return random.randint(0, 100)
-    
-    def order_moves(self, moves):
-        center = 3
-        sorted_moves = sorted(moves, key=lambda x: abs(x - center))
-        return sorted_moves
-    
-    def negamax(self, state, player, depth, alpha=-math.inf, beta=math.inf):
-        key = hash(state.data.tobytes())
-        if key in self.transposition_table and self.transposition_table[key]['depth'] >= depth:
-            return self.transposition_table[key]['value'], self.transposition_table[key]['move']
-
-        opp_player = 3 - player
-        if self.is_win(state, player) == player:
-            return 1000, None
-        
-        if self.is_win(state, opp_player) == opp_player:
-            return -1000, None
-
+        # reached max depth, calculate eval score which ranges from -1 to +1
         if depth == 0:
-            score = self.eval_func(state, player)
-            return score, None
+            score = bitboard.eval_func()
+            return (None, -2)
         
-        value = -math.inf
-        valid_moves = self.order_moves(get_valid_col_id(state))
         best_move = None
+        value = -1
 
-        for move in valid_moves: 
-            new_value, _ = self.negamax(step(state, move, opp_player, in_place=False), opp_player, depth - 1, -beta, -alpha)
-            new_value *= -1
-            if new_value > value:
-                value = new_value
+        valid_moves = bitboard.gen_valid_moves()
+        for move in valid_moves:
+            _, res = self.negamax(bitboard.make_move(move), depth - 1, -beta, -alpha)
+            res *= -1
+            bitboard.undo_move()
+            if res > value:
+                value = res
                 best_move = move
 
+            
             alpha = max(alpha, value)
             if alpha >= beta:
                 break
         
-        self.transposition_table[key] = {'value': value, 'move': move, 'depth': depth}
-        return value, best_move
+        self.transposition_table[key] = (best_move, value)
+        return (best_move, value)
 
+def create_empty_numpy_board():
+    return np.zeros((6, 7))
+  
+def conv_to_board(filename):
+    f = open(filename, "r")
+    
+    test_boards = []
+    player_ids = []
+    outcomes = []
+    players = [1, 2]
 
-board = ConnectFour()
-game = GameController(board=board, agents=[HumanAgent(1), AIAgent(2)])
-game.run()
+    line = f.readline()
+    while line:
+        pos, score = line.strip().split()
+        counter = 0
+        b = create_empty_numpy_board()
+        height = [5, 5, 5, 5, 5, 5, 5]
+        for char in pos:
+            c = int(char) - 1
+            curr_player = counter & 1
+            row = height[c]
+            b[row][c] = players[curr_player]
+            height[c] -= 1
+            counter += 1
 
-# # Test cases
-# assert(True)
-# # Upload your code to Coursemology to test it against our agent.
+        test_boards.append(b)
+        outcomes.append(score)
+        player_ids.append(counter & 1)
+        line = f.readline()
 
-# def test_task_2_1():
-#     assert(True)
-#     # Upload your code to Coursemology to test it against our agent.
+    return test_boards, player_ids, outcomes
 
-# ## Task 2.2: Defeat the Base Agent
+test_boards, player_ids, outcomes = conv_to_board("./tests/Test_L3_R1")
 
-# class AIAgent(object):
-#     """
-#     A class representing an agent that plays Connect Four.
-#     """
-#     def __init__(self, player_id=1):
-#         """Initializes the agent with the specified player ID.
+moves = []
+results = []
+times = []
+for i in range(len(test_boards)):
+    start = time.time()
+    agent = AIAgent(player_ids[i])
+    best_move, res = agent.make_move(test_boards[i])
+    moves.append(best_move)
+    res = -1 if res < 0 else 1 if res > 0 else 0
+    results.append(res)
+    times.append(time.time() - start)
 
-#         Parameters:
-#         -----------
-#         player_id : int
-#             The ID of the player assigned to this agent (1 or 2).
-#         """
-#         pass
-#     def make_move(self, state):
-#         """
-#         Determines and returns the next move for the agent based on the current game state.
+for i in range(1000):
+    outcome = int(outcomes[i])
+    outcome = -1 if outcome < 0 else 1 if outcome > 0 else 0
+    if results[i] != outcome:
+        print(f"test {i} error")
+        print(test_boards[i])
+        print(f"outcome supp to be {outcome}, res is {results[i]}, move played {moves[i]}")
 
-#         Parameters:
-#         -----------
-#         state : np.ndarray
-#             A 2D numpy array representing the current, read-only state of the game board. 
-#             The board contains:
-#             - 0 for an empty cell,
-#             - 1 for Player 1's piece,
-#             - 2 for Player 2's piece.
-
-#         Returns:
-#         --------
-#         int
-#             The valid action, ie. a valid column index (col_id) where this agent chooses to drop its piece.
-#         """
-#         """ YOUR CODE HERE """
-#         raise NotImplementedError
-#         """ YOUR CODE END HERE """
-
-# def test_task_2_2():
-#     assert(True)
-#     # Upload your code to Coursemology to test it against our agent.
-
-
-# if __name__ == '__main__':
-    # test_task_1_1()
-    # test_task_2_1()
-    # test_task_2_2()
+# print("testing results: ", results)
+# print("correct outcomes: ", outcomes)
+print(max(times))
+    

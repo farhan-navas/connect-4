@@ -1,5 +1,6 @@
 from pygame_simulator import GameControllerPygame, HumanPygameAgent
 from connect_four import ConnectFour
+from contest import AIAgent
 
 class ZeroAgent(object):
     def __init__(self, player_id):
@@ -9,5 +10,5 @@ class ZeroAgent(object):
 
 if __name__ == "__main__":
     board = ConnectFour()
-    game = GameControllerPygame(board=board, agents=[HumanPygameAgent(1), ZeroAgent(2)])
+    game = GameControllerPygame(board=board, agents=[HumanPygameAgent(1), AIAgent(2)])
     game.run()
