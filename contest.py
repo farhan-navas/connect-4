@@ -5,17 +5,19 @@ from board import Board
 import time
 import numpy as np
 
+def get_tt_entry(value, UB=False, LB=False):
+    return {'value': value, 'UB': UB, 'LB': LB}       
+
 class AIAgent(object):
     def __init__(self, player_id=1):
         self.player_id = player_id
-        self.transposition_table = {}
 
     def make_move(self, state):
-        start_time = time.time()
+        # start_time = time.time()
         bitboard = Board(state)
 
         # CURRENTLY, max depth we can do on coursemology is 7, optimize!!
-        best_move, res = self.negamax(bitboard, 14)
+        best_move, res = self.negamax(bitboard, 8)
 
         # print("num of items: ", len(self.transposition_table))
         # print("Time taken: ", (time.time() - start_time), " seconds")
@@ -25,11 +27,19 @@ class AIAgent(object):
         return (best_move, res)
     
     def negamax(self, bitboard: Board, depth, alpha=-math.inf, beta=math.inf):
-        key = (bitboard.player1, bitboard.player2)
-
-        # check if current position is in the transposition table
-        if key in self.transposition_table:
-            return self.transposition_table[key]
+        alpha_orig = alpha
+        entry = bitboard.transposition_table[bitboard.getKey()] if\
+            bitboard.getKey() in bitboard.transposition_table else None
+        
+        if entry:
+            if entry['LB']:
+                alpha = max(alpha, entry['value'])
+            elif entry['UB']:
+                beta = min(beta, entry['value'])
+            else:
+                return (None, entry['value'])
+            if alpha >= beta:
+                return (None, entry['value'])
 
         # is_win() checks if the opponent player wins
         if bitboard.is_win():
@@ -42,26 +52,35 @@ class AIAgent(object):
         # reached max depth, calculate eval score which ranges from -1 to +1
         if depth == 0:
             score = bitboard.eval_func()
-            return (None, -2)
+            return (None, score)
         
         best_move = None
         value = -1
+        
+        # valid_moves = bitboard.gen_valid_moves()
+        non_losing = bitboard.non_losing_moves()
+        valid_moves = non_losing + [move for move in bitboard.gen_valid_moves() if move not in non_losing]
 
-        valid_moves = bitboard.gen_valid_moves()
         for move in valid_moves:
-            _, res = self.negamax(bitboard.make_move(move), depth - 1, -beta, -alpha)
+            bitboard.make_move(move)
+            _, res = self.negamax(bitboard, depth - 1, -beta, -alpha)
             res *= -1
             bitboard.undo_move()
             if res > value:
                 value = res
                 best_move = move
-
             
             alpha = max(alpha, value)
             if alpha >= beta:
                 break
         
-        self.transposition_table[key] = (best_move, value)
+        if value <= alpha_orig:
+            bitboard.transposition_table[bitboard.getKey()] = get_tt_entry(value, UB=True)
+        elif value >= beta:
+            bitboard.transposition_table[bitboard.getKey()] = get_tt_entry(value, LB=True)
+        else:
+            bitboard.transposition_table[bitboard.getKey()] = get_tt_entry(value)
+
         return (best_move, value)
 
 def create_empty_numpy_board():

@@ -1,6 +1,6 @@
 from pygame_simulator import GameControllerPygame, HumanPygameAgent
 from connect_four import ConnectFour
-from contest import AIAgent
+from game import AIAgent
 
 class ZeroAgent(object):
     def __init__(self, player_id):

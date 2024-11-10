@@ -1,11 +1,29 @@
 import math
 import numpy as np
+from collections import OrderedDict
 
 # COLUMN_COUNT = 7
 # ROW_COUNT = 6
 
-class Board:
+class LRUCache(OrderedDict):
+    def __init__(self, maxsize=128, *args, **kwds):
+        self.maxsize = maxsize
+        super().__init__(*args, **kwds)
 
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        self.move_to_end(key)
+        return value
+
+    def __setitem__(self, key, value):
+        if key in self:
+            self.move_to_end(key)
+        super().__setitem__(key, value)
+        if len(self) > self.maxsize:
+            oldest = next(iter(self))
+            del self[oldest]
+
+class Board:
     def __init__(self, state):
         self.height = [0, 7, 14, 21, 28, 35, 42]
         self.counter = 0
@@ -14,6 +32,7 @@ class Board:
         self.player1, self.player2 = self.convert_state_to_board(state)
         self.bottom_mask = 0b1000000100000010000001000000100000010000001
         self.board_mask =  0b0111111011111101111110111111011111101111110111111
+        self.transposition_table = LRUCache(1000000)
 
     def convert_state_to_board(self, state):
         # p1 -> represents the position of player 1 tokens
@@ -37,6 +56,9 @@ class Board:
             p1, p2 = p2, p1
 
         return p1, p2
+
+    def getKey(self):
+        return (self.player1, self.player2)
 
     def eval_func(self):
         directions = [1, 7, 6, 8]
@@ -85,16 +107,18 @@ class Board:
         self.moves[self.counter] = col
         self.counter += 1
 
-        self.player1, self.player2 = self.player2, self.player1 ^ move
-        return self
+        self.player1 ^= move
+        self.player1, self.player2 = self.player2, self.player1
 
     def undo_move(self):
         self.counter -= 1
         col = self.moves[self.counter]
+        # col = self.moves.pop()
         self.height[col] -= 1
         move = 1 << self.height[col]
 
-        self.player1, self.player2 = self.player2 ^ move, self.player1
+        self.player2 ^= move
+        self.player1, self.player2 = self.player2, self.player1
 
     def gen_valid_moves(self):
         moves = []
@@ -103,7 +127,7 @@ class Board:
             if ((TOP & (1 << self.height[i])) == 0):
                 moves.append(i)
 
-        # moves.sort(key=lambda x: abs(x - 3))
+        moves.sort(key=lambda x: abs(x - 3))
         return moves
     
     def bits_to_moves(self, b):
